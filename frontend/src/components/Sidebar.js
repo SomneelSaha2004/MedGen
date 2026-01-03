@@ -1,30 +1,30 @@
-import React from 'react';
-import { 
-  Box, 
-  Drawer, 
-  List, 
-  ListItem, 
-  ListItemButton,
-  ListItemIcon, 
-  ListItemText, 
-  IconButton,
-  Typography,
+import AnalyticsIcon from '@mui/icons-material/Analytics';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import DataObjectIcon from '@mui/icons-material/DataObject';
+import DatasetIcon from '@mui/icons-material/Dataset';
+import HomeIcon from '@mui/icons-material/Home';
+import InfoIcon from '@mui/icons-material/Info';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import StorageIcon from '@mui/icons-material/Storage';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import {
+  Box,
   Divider,
+  Drawer,
+  IconButton,
   LinearProgress,
-  Paper
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Paper,
+  Typography
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import TableChartIcon from '@mui/icons-material/TableChart';
-import DataObjectIcon from '@mui/icons-material/DataObject';
-import StorageIcon from '@mui/icons-material/Storage';
-import AnalyticsIcon from '@mui/icons-material/Analytics';
-import InfoIcon from '@mui/icons-material/Info';
-import HomeIcon from '@mui/icons-material/Home';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 
 const drawerWidth = 280;
 
@@ -36,18 +36,19 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   justifyContent: 'flex-end',
 }));
 
-const Sidebar = ({ 
-  isOpen, 
-  toggleSidebar, 
+const Sidebar = ({
+  isOpen,
+  toggleSidebar,
   uploadResponse,
   isGenerating,
   generationProgress
 }) => {
   const location = useLocation();
-  
+
   // Menu items
   const menuItems = [
     { text: 'Home', icon: <HomeIcon />, path: '/' },
+    { text: 'Datasets', icon: <DatasetIcon />, path: '/datasets' },
     { text: 'Data Explorer', icon: <TableChartIcon />, path: '/explorer' },
     { text: 'Analysis', icon: <AnalyticsIcon />, path: '/analysis' },
     { text: 'Data Generation', icon: <DataObjectIcon />, path: '/generation' },
@@ -55,7 +56,7 @@ const Sidebar = ({
     { text: 'About Us', icon: <InfoIcon />, path: '/about' },
     { text: 'Acknowledgements', icon: <InfoIcon />, path: '/acknowledgements' }
   ];
-  
+
   return (
     <Drawer
       sx={{
@@ -75,19 +76,19 @@ const Sidebar = ({
       className="drawer-container"
     >
       <DrawerHeader>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          width: '100%', 
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          width: '100%',
           justifyContent: 'space-between',
-          ml: 2 
+          ml: 2
         }}>
-          <Typography 
-            variant="h6" 
-            component="div" 
-            color="primary" 
-            sx={{ 
-              fontWeight: 'bold', 
+          <Typography
+            variant="h6"
+            component="div"
+            color="primary"
+            sx={{
+              fontWeight: 'bold',
               letterSpacing: '1px',
               textTransform: 'uppercase'
             }}
@@ -104,11 +105,11 @@ const Sidebar = ({
       <Divider sx={{ borderColor: 'rgba(0, 230, 118, 0.2)' }} />
 
       <Box sx={{ p: 2 }}>
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          sx={{ 
+          sx={{
             p: 2,
             backgroundColor: "rgba(0, 0, 0, 0.3)",
             borderRadius: "8px",
@@ -129,11 +130,11 @@ const Sidebar = ({
                     {Math.round(generationProgress || 0)}%
                   </Typography>
                 </Box>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={generationProgress || 0} 
-                  sx={{ 
-                    height: 6, 
+                <LinearProgress
+                  variant="determinate"
+                  value={generationProgress || 0}
+                  sx={{
+                    height: 6,
                     borderRadius: 1,
                     backgroundColor: 'rgba(0, 0, 0, 0.3)',
                     '& .MuiLinearProgress-bar': {
@@ -150,12 +151,12 @@ const Sidebar = ({
                 Current Dataset
               </Typography>
               {uploadResponse ? (
-                <Box 
-                  component={Paper} 
-                  sx={{ 
-                    p: 1.5, 
-                    mt: 1, 
-                    display: 'flex', 
+                <Box
+                  component={Paper}
+                  sx={{
+                    p: 1.5,
+                    mt: 1,
+                    display: 'flex',
                     alignItems: 'center',
                     bgcolor: 'rgba(0, 0, 0, 0.3)',
                     border: '1px solid rgba(255, 255, 255, 0.2)'
@@ -164,13 +165,13 @@ const Sidebar = ({
                   <InsertDriveFileIcon sx={{ color: 'rgba(255, 255, 255, 0.8)', mr: 1, fontSize: '1.2rem' }} />
                   <Box>
                     <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-                      {uploadResponse.filename || 
-                       (uploadResponse.current_file && typeof uploadResponse.current_file === 'string' 
-                        ? uploadResponse.current_file.split('/').pop() 
-                        : 'Dataset')}
+                      {uploadResponse.filename ||
+                        (uploadResponse.current_file && typeof uploadResponse.current_file === 'string'
+                          ? uploadResponse.current_file.split('/').pop()
+                          : 'Dataset')}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                      {uploadResponse.rowCount || uploadResponse.rows || 0} rows · 
+                      {uploadResponse.rowCount || uploadResponse.rows || 0} rows ·
                       {uploadResponse.columnCount || (uploadResponse.columns ? uploadResponse.columns.length : 0)} columns
                     </Typography>
                   </Box>
@@ -190,10 +191,10 @@ const Sidebar = ({
       <List>
         {menuItems.map((item, index) => {
           const isActive = location.pathname === item.path;
-          
+
           return (
             <ListItem key={index} disablePadding>
-              <ListItemButton 
+              <ListItemButton
                 component={RouterLink}
                 to={item.path}
                 sx={{
@@ -208,14 +209,14 @@ const Sidebar = ({
                 <ListItemIcon sx={{ color: isActive ? '#00E676' : 'rgba(0, 230, 118, 0.7)' }}>
                   {item.icon}
                 </ListItemIcon>
-                <ListItemText 
-                  primary={item.text} 
-                  sx={{ 
+                <ListItemText
+                  primary={item.text}
+                  sx={{
                     color: '#fff',
                     '& .MuiTypography-root': {
                       fontWeight: isActive ? 700 : 500,
                     }
-                  }} 
+                  }}
                 />
               </ListItemButton>
             </ListItem>

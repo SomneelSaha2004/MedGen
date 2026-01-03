@@ -1,0 +1,106 @@
+{
+    // ==========================================================================
+    // MedGen VS Code Tasks
+    // ==========================================================================
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Backend",
+            "type": "shell",
+            "command": "uv run python backend.py",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Start Frontend",
+            "type": "shell",
+            "command": "npm start",
+            "options": {
+                "cwd": "${workspaceFolder}/frontend"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "npm",
+                "pattern": {
+                    "regexp": "^(.*)$",
+                    "message": 1
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "Starting the development server",
+                    "endsPattern": "Compiled successfully"
+                }
+            }
+        },
+        {
+            "label": "Start Full Stack",
+            "dependsOn": [
+                "Start Backend",
+                "Start Frontend"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Install Dependencies",
+            "type": "shell",
+            "command": "make install",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Tests",
+            "type": "shell",
+            "command": "make test",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Format Code",
+            "type": "shell",
+            "command": "make format",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Evaluation Pipeline",
+            "type": "shell",
+            "command": "uv run python basic_eval_pipeline.py",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Privacy Assessment",
+            "type": "shell",
+            "command": "uv run python anonymeter_privacy_eval.py",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker Build & Run",
+            "type": "shell",
+            "command": "docker-compose up --build",
+            "group": "none",
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean Project",
+            "type": "shell",
+            "command": "make clean",
+            "group": "none",
+            "problemMatcher": []
+        }
+    ]
+}

@@ -1,43 +1,40 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { 
-  Paper, 
-  Typography, 
-  Box, 
-  Grid, 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem, 
-  CircularProgress, 
-  Alert, 
-  Divider, 
+import {
+  Alert,
+  Box,
+  Button,
   Card,
   CardContent,
-  Button,
+  CircularProgress,
+  Divider,
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
   Tab,
-  Tabs
+  Tabs,
+  Typography
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
+import { useEffect, useState } from 'react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
   Cell,
-  ScatterChart,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
   Scatter,
-  ZAxis,
-  LineChart,
-  Line
+  ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+  ZAxis
 } from 'recharts';
 import api from '../services/api';
-import { CSVContext } from '../App';
 
 const Analysis = () => {
   const [loading, setLoading] = useState(false);
@@ -52,16 +49,14 @@ const Analysis = () => {
 
   // COLORS for charts
   const COLORS = [
-    '#00E676', '#1DE9B6', '#00B0FF', '#00E5FF', '#651FFF', 
+    '#00E676', '#1DE9B6', '#00B0FF', '#00E5FF', '#651FFF',
     '#D500F9', '#FF1744', '#FF9100', '#FFEA00', '#76FF03'
   ];
-
-  // Access CSV context
-  const { isCSVUploaded } = useContext(CSVContext);
 
   useEffect(() => {
     // Fetch overview data on component mount
     fetchOverviewData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch overview data
@@ -71,11 +66,11 @@ const Analysis = () => {
     try {
       // Try to use real data
       const endpoint = '/stats_query?chart_type=overview';
-      
+
       console.log(`Fetching overview data from: ${endpoint}`);
       const response = await api.get(endpoint);
       console.log("Overview data response:", response.data);
-      
+
       setOverview(response.data);
       // Set default column if available
       if (response.data.numericColumns && response.data.numericColumns.length > 0) {
@@ -95,7 +90,7 @@ const Analysis = () => {
       setLoading(false);
     }
   };
-  
+
   // Fetch chart data
   const fetchChartData = async (chartType, params = {}) => {
     setLoading(true);
@@ -104,19 +99,19 @@ const Analysis = () => {
       let queryParams = new URLSearchParams({
         chart_type: chartType,
       });
-      
+
       // Add additional params
       Object.keys(params).forEach(key => {
         queryParams.append(key, params[key]);
       });
-      
+
       // Use real data
       const endpoint = `/stats_query?${queryParams}`;
-      
+
       console.log(`Fetching chart data from: ${endpoint}`);
       const response = await api.get(endpoint);
       console.log(`${chartType} data response:`, response.data);
-      
+
       setChartData(response.data);
     } catch (error) {
       console.error(`Error fetching ${chartType} data:`, error);
@@ -127,11 +122,13 @@ const Analysis = () => {
     }
   };
 
+  // Handler for chart type changes (reserved for future use)
+  // eslint-disable-next-line no-unused-vars
   const handleChartTypeChange = (event) => {
     const newChartType = event.target.value;
     setCurrentChart(newChartType);
     setChartData(null);
-    
+
     if (newChartType === 'overview') {
       fetchOverviewData();
     } else if (newChartType === 'histogram' && selectedColumn) {
@@ -146,7 +143,7 @@ const Analysis = () => {
   const handleColumnChange = (event) => {
     const newColumn = event.target.value;
     setSelectedColumn(newColumn);
-    
+
     if (currentChart === 'histogram') {
       fetchChartData('histogram', { column: newColumn });
     }
@@ -155,7 +152,7 @@ const Analysis = () => {
   const handleXColumnChange = (event) => {
     const newXColumn = event.target.value;
     setXColumn(newXColumn);
-    
+
     if (currentChart === 'scatter' && yColumn) {
       fetchChartData('scatter', { x_column: newXColumn, y_column: yColumn });
     }
@@ -164,7 +161,7 @@ const Analysis = () => {
   const handleYColumnChange = (event) => {
     const newYColumn = event.target.value;
     setYColumn(newYColumn);
-    
+
     if (currentChart === 'scatter' && xColumn) {
       fetchChartData('scatter', { x_column: xColumn, y_column: newYColumn });
     }
@@ -172,8 +169,8 @@ const Analysis = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
-    
-    switch(newValue) {
+
+    switch (newValue) {
       case 0:
         setCurrentChart('overview');
         fetchOverviewData();
@@ -207,17 +204,17 @@ const Analysis = () => {
           <Alert severity="info" sx={{ mb: 2 }}>
             No data found. Please upload a CSV file or generate synthetic data first.
           </Alert>
-          <Button 
-            variant="contained" 
-            component="a" 
-            href="/explorer" 
+          <Button
+            variant="contained"
+            component="a"
+            href="/explorer"
             sx={{ mr: 2 }}
           >
             Upload CSV File
           </Button>
-          <Button 
-            variant="outlined" 
-            component="a" 
+          <Button
+            variant="outlined"
+            component="a"
             href="/generation"
           >
             Generate Data
@@ -228,8 +225,8 @@ const Analysis = () => {
 
     return (
       <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Card sx={{ 
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card sx={{
             height: '100%',
             border: '1px solid rgba(0, 230, 118, 0.2)',
             bgcolor: 'rgba(0, 0, 0, 0.2)',
@@ -243,10 +240,10 @@ const Analysis = () => {
                 Dataset Overview
               </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 2, 
-                    bgcolor: 'rgba(0, 230, 118, 0.05)', 
+                <Grid size={6}>
+                  <Box sx={{
+                    p: 2,
+                    bgcolor: 'rgba(0, 230, 118, 0.05)',
                     borderRadius: 1,
                     border: '1px solid rgba(0, 230, 118, 0.2)'
                   }}>
@@ -254,10 +251,10 @@ const Analysis = () => {
                     <Typography variant="body2">Rows</Typography>
                   </Box>
                 </Grid>
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 2, 
-                    bgcolor: 'rgba(0, 230, 118, 0.05)', 
+                <Grid size={6}>
+                  <Box sx={{
+                    p: 2,
+                    bgcolor: 'rgba(0, 230, 118, 0.05)',
                     borderRadius: 1,
                     border: '1px solid rgba(0, 230, 118, 0.2)'
                   }}>
@@ -265,10 +262,10 @@ const Analysis = () => {
                     <Typography variant="body2">Columns</Typography>
                   </Box>
                 </Grid>
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 2, 
-                    bgcolor: 'rgba(0, 230, 118, 0.05)', 
+                <Grid size={6}>
+                  <Box sx={{
+                    p: 2,
+                    bgcolor: 'rgba(0, 230, 118, 0.05)',
                     borderRadius: 1,
                     border: '1px solid rgba(0, 230, 118, 0.2)'
                   }}>
@@ -276,10 +273,10 @@ const Analysis = () => {
                     <Typography variant="body2">Numeric Columns</Typography>
                   </Box>
                 </Grid>
-                <Grid item xs={6}>
-                  <Box sx={{ 
-                    p: 2, 
-                    bgcolor: 'rgba(0, 230, 118, 0.05)', 
+                <Grid size={6}>
+                  <Box sx={{
+                    p: 2,
+                    bgcolor: 'rgba(0, 230, 118, 0.05)',
                     borderRadius: 1,
                     border: '1px solid rgba(0, 230, 118, 0.2)'
                   }}>
@@ -291,9 +288,9 @@ const Analysis = () => {
             </CardContent>
           </Card>
         </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <Card sx={{ 
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Card sx={{
             height: '100%',
             border: '1px solid rgba(0, 230, 118, 0.2)',
             bgcolor: 'rgba(0, 0, 0, 0.2)',
@@ -358,9 +355,9 @@ const Analysis = () => {
         </Box>
       );
     }
-    
+
     const allColumns = [...(overview.numericColumns || []), ...(overview.categoricalColumns || [])];
-    
+
     return (
       <>
         <Box sx={{ mb: 3 }}>
@@ -387,10 +384,10 @@ const Analysis = () => {
               ))}
             </Select>
           </FormControl>
-          
-          <Button 
-            variant="contained" 
-            color="primary" 
+
+          <Button
+            variant="contained"
+            color="primary"
             onClick={() => fetchChartData('histogram', { column: selectedColumn })}
             sx={{ mb: 2 }}
             className="glow-effect"
@@ -398,7 +395,7 @@ const Analysis = () => {
             Generate Histogram
           </Button>
         </Box>
-        
+
         {chartData && chartData.type === 'numeric' && (
           <Box sx={{ height: 400 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -407,26 +404,26 @@ const Analysis = () => {
                 margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis 
-                  dataKey="bin" 
-                  angle={-45} 
-                  textAnchor="end" 
-                  height={80} 
-                  tick={{ fill: '#ccc', fontSize: 12 }} 
+                <XAxis
+                  dataKey="bin"
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fill: '#ccc', fontSize: 12 }}
                 />
                 <YAxis tick={{ fill: '#ccc' }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1a1a1a', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1a1a1a',
                     borderColor: '#00E676',
                     color: '#fff'
-                  }} 
+                  }}
                 />
                 <Legend />
-                <Bar 
-                  dataKey="count" 
-                  name="Frequency" 
-                  fill="#00E676" 
+                <Bar
+                  dataKey="count"
+                  name="Frequency"
+                  fill="#00E676"
                   fillOpacity={0.8}
                   stroke="#00E676"
                   strokeWidth={1}
@@ -435,7 +432,7 @@ const Analysis = () => {
             </ResponsiveContainer>
           </Box>
         )}
-        
+
         {chartData && chartData.type === 'categorical' && (
           <Box sx={{ height: 400 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -446,24 +443,24 @@ const Analysis = () => {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis type="number" tick={{ fill: '#ccc' }} />
-                <YAxis 
-                  dataKey="value" 
-                  type="category" 
+                <YAxis
+                  dataKey="value"
+                  type="category"
                   width={150}
-                  tick={{ fill: '#ccc', fontSize: 12 }} 
+                  tick={{ fill: '#ccc', fontSize: 12 }}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1a1a1a', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1a1a1a',
                     borderColor: '#00E676',
                     color: '#fff'
-                  }} 
+                  }}
                 />
                 <Legend />
-                <Bar 
-                  dataKey="count" 
-                  name="Frequency" 
-                  fill="#00E676" 
+                <Bar
+                  dataKey="count"
+                  name="Frequency"
+                  fill="#00E676"
                   fillOpacity={0.8}
                   stroke="#00E676"
                   strokeWidth={1}
@@ -487,7 +484,7 @@ const Analysis = () => {
         </Box>
       );
     }
-    
+
     // Transform correlation data for visualization
     const transformedData = chartData.correlationMatrix.map(item => ({
       source: item.source,
@@ -495,29 +492,29 @@ const Analysis = () => {
       value: item.correlation,
       // Color based on correlation strength
       fill: item.correlation > 0.7 ? '#00E676' :
-            item.correlation > 0.5 ? '#76FF03' :
-            item.correlation > 0.3 ? '#FFEA00' :
+        item.correlation > 0.5 ? '#76FF03' :
+          item.correlation > 0.3 ? '#FFEA00' :
             item.correlation > 0 ? '#FF9100' :
-            item.correlation > -0.3 ? '#FF1744' :
-            item.correlation > -0.5 ? '#D500F9' : '#651FFF'
+              item.correlation > -0.3 ? '#FF1744' :
+                item.correlation > -0.5 ? '#D500F9' : '#651FFF'
     }));
-    
+
     // Get top 5 strongest correlations
     const topCorrelations = [...transformedData]
       .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
       .slice(0, 5);
-    
+
     return (
       <>
         <Typography variant="h6" sx={{ color: '#00E676', mb: 2 }}>
           Top Correlations
         </Typography>
-        
+
         <Grid container spacing={2} sx={{ mb: 3 }}>
           {topCorrelations.map((item, index) => (
-            <Grid item xs={12} sm={6} md={4} key={index}>
-              <Box sx={{ 
-                p: 2, 
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
+              <Box sx={{
+                p: 2,
                 borderRadius: 1,
                 bgcolor: 'rgba(0, 0, 0, 0.2)',
                 border: '1px solid rgba(0, 230, 118, 0.2)',
@@ -528,12 +525,12 @@ const Analysis = () => {
                 <Typography variant="subtitle2" gutterBottom>
                   {item.source} ↔ {item.target}
                 </Typography>
-                <Typography 
-                  variant="h4" 
-                  sx={{ 
-                    color: item.fill, 
+                <Typography
+                  variant="h4"
+                  sx={{
+                    color: item.fill,
                     fontWeight: 'bold',
-                    textAlign: 'center' 
+                    textAlign: 'center'
                   }}
                 >
                   {item.value.toFixed(2)}
@@ -542,42 +539,42 @@ const Analysis = () => {
             </Grid>
           ))}
         </Grid>
-        
+
         <Box sx={{ height: 400, mt: 4 }}>
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart
               margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis 
-                type="category" 
-                dataKey="source" 
-                name="Source" 
-                tick={{ fill: '#ccc' }} 
+              <XAxis
+                type="category"
+                dataKey="source"
+                name="Source"
+                tick={{ fill: '#ccc' }}
                 allowDuplicatedCategory={false}
               />
-              <YAxis 
-                type="category" 
-                dataKey="target" 
-                name="Target" 
-                tick={{ fill: '#ccc' }} 
+              <YAxis
+                type="category"
+                dataKey="target"
+                name="Target"
+                tick={{ fill: '#ccc' }}
                 allowDuplicatedCategory={false}
               />
-              <ZAxis 
-                dataKey="value" 
-                range={[20, 200]} 
-                name="Correlation" 
+              <ZAxis
+                dataKey="value"
+                range={[20, 200]}
+                name="Correlation"
               />
-              <Tooltip 
+              <Tooltip
                 formatter={(value) => [value.toFixed(4), 'Correlation']}
-                contentStyle={{ 
-                  backgroundColor: '#1a1a1a', 
+                contentStyle={{
+                  backgroundColor: '#1a1a1a',
                   borderColor: '#00E676',
                   color: '#fff'
                 }}
               />
-              <Scatter 
-                data={transformedData} 
+              <Scatter
+                data={transformedData}
                 fill="#00E676"
               >
                 {transformedData.map((entry, index) => (
@@ -602,12 +599,12 @@ const Analysis = () => {
         </Box>
       );
     }
-    
+
     return (
       <>
         <Box sx={{ mb: 3 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={5}>
+            <Grid size={{ xs: 12, sm: 5 }}>
               <FormControl fullWidth variant="outlined">
                 <InputLabel>X-Axis Column</InputLabel>
                 <Select
@@ -632,7 +629,7 @@ const Analysis = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={5}>
+            <Grid size={{ xs: 12, sm: 5 }}>
               <FormControl fullWidth variant="outlined">
                 <InputLabel>Y-Axis Column</InputLabel>
                 <Select
@@ -657,10 +654,10 @@ const Analysis = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={2}>
-              <Button 
-                variant="contained" 
-                color="primary" 
+            <Grid size={{ xs: 12, sm: 2 }}>
+              <Button
+                variant="contained"
+                color="primary"
                 fullWidth
                 sx={{ height: '56px' }}
                 onClick={() => fetchChartData('scatter', { x_column: xColumn, y_column: yColumn })}
@@ -671,7 +668,7 @@ const Analysis = () => {
             </Grid>
           </Grid>
         </Box>
-        
+
         {chartData && chartData.scatterData && (
           <Box sx={{ height: 400 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -679,43 +676,43 @@ const Analysis = () => {
                 margin={{ top: 20, right: 20, bottom: 60, left: 30 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis 
-                  type="number" 
-                  dataKey="x" 
-                  name={chartData.x_column} 
-                  label={{ 
-                    value: chartData.x_column, 
-                    position: 'bottom', 
-                    fill: '#ccc', 
-                    offset: 0 
+                <XAxis
+                  type="number"
+                  dataKey="x"
+                  name={chartData.x_column}
+                  label={{
+                    value: chartData.x_column,
+                    position: 'bottom',
+                    fill: '#ccc',
+                    offset: 0
                   }}
                   tick={{ fill: '#ccc' }}
                 />
-                <YAxis 
-                  type="number" 
-                  dataKey="y" 
+                <YAxis
+                  type="number"
+                  dataKey="y"
                   name={chartData.y_column}
-                  label={{ 
-                    value: chartData.y_column, 
-                    angle: -90, 
-                    position: 'left', 
+                  label={{
+                    value: chartData.y_column,
+                    angle: -90,
+                    position: 'left',
                     fill: '#ccc',
                     offset: 10
                   }}
                   tick={{ fill: '#ccc' }}
                 />
-                <Tooltip 
+                <Tooltip
                   cursor={{ strokeDasharray: '3 3' }}
                   formatter={(value, name) => [value, name === 'x' ? chartData.x_column : chartData.y_column]}
-                  contentStyle={{ 
-                    backgroundColor: '#1a1a1a', 
+                  contentStyle={{
+                    backgroundColor: '#1a1a1a',
                     borderColor: '#00E676',
                     color: '#fff'
                   }}
                 />
-                <Scatter 
-                  name="Data Points" 
-                  data={chartData.scatterData} 
+                <Scatter
+                  name="Data Points"
+                  data={chartData.scatterData}
                   fill="#00E676"
                   opacity={0.7}
                 />
@@ -733,35 +730,35 @@ const Analysis = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <Paper 
-        sx={{ 
-          p: 3, 
+      <Paper
+        sx={{
+          p: 3,
           mb: 3,
           border: '1px solid rgba(0, 230, 118, 0.2)',
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
         }}
       >
-        <Typography 
-          variant="h4" 
-          component="h1" 
+        <Typography
+          variant="h4"
+          component="h1"
           gutterBottom
           className="cyber-header"
           sx={{ mb: 3 }}
         >
           Data Analysis
         </Typography>
-        
+
         {error && (
-          <Alert 
-            severity="error" 
+          <Alert
+            severity="error"
             sx={{ mb: 3, border: '1px solid rgba(255, 82, 82, 0.3)' }}
           >
             {error}
           </Alert>
         )}
-        
-        <Tabs 
-          value={activeTab} 
+
+        <Tabs
+          value={activeTab}
           onChange={handleTabChange}
           variant="fullWidth"
           sx={{
@@ -782,7 +779,7 @@ const Analysis = () => {
           <Tab label="Correlation" />
           <Tab label="Scatter Plot" />
         </Tabs>
-        
+
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
             <CircularProgress color="primary" />

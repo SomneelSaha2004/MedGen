@@ -1,4 +1,176 @@
+# =============================================================================
+# MedGen .gitignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Environment & Secrets
+# -----------------------------------------------------------------------------
 .env
+.env.local
+.env.*.local
+*.pem
+secrets/
+*.pyc
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
 venv/
+ENV/
+env/
+.venv/
+
+# uv package manager
+.uv/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# -----------------------------------------------------------------------------
+# JavaScript / Node
+# -----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Build outputs
+frontend/build/
+frontend/dist/
+
+# -----------------------------------------------------------------------------
+# IDE & Editors
+# -----------------------------------------------------------------------------
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# VS Code (keep workspace settings but ignore user settings)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# -----------------------------------------------------------------------------
+# macOS
+# -----------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# -----------------------------------------------------------------------------
+# Windows
+# -----------------------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# -----------------------------------------------------------------------------
+# Application Data & Generated Files
+# -----------------------------------------------------------------------------
+# Data directories
 data/
+datasets/training/
+datasets/eval/
+
+# Generated results
 results/
+multi_dataset_results/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+
+# Log files
+app.log
+anonymeter.log
+*.log
+
+# Synthetic output
+synthetic_output.csv
+
+# ChromaDB data
+chroma_db/
+
+# -----------------------------------------------------------------------------
+# ML Model Artifacts
+# -----------------------------------------------------------------------------
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.model
+*.joblib
+
+# Generated plots (keep in results/ if needed)
+evals/models/*.png
+*.png
+!docs/images/*.png
+
+# -----------------------------------------------------------------------------
+# Test artifacts
+# -----------------------------------------------------------------------------
+test.csv
+test_*.csv
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# -----------------------------------------------------------------------------
+# Documentation builds
+# -----------------------------------------------------------------------------
+docs/_build/
+site/
+
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
+*.bak
+*.orig
+.cache/
+__pycache__/rag.cpython-311.pyc

@@ -1,5 +1,53 @@
 {
+    // ==========================================================================
+    // MedGen VS Code Settings
+    // ==========================================================================
+    // Python Configuration
     "python.analysis.extraPaths": [
-        "./anonymeter/src"
-    ]
+        "./anonymeter/src",
+        "./evals"
+    ],
+    "python.defaultInterpreterPath": "./.venv/bin/python",
+    "python.formatting.provider": "black",
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.pylintEnabled": false,
+    // Editor Configuration
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    },
+    "editor.rulers": [
+        100
+    ],
+    // File Associations
+    "files.associations": {
+        "*.env*": "properties"
+    },
+    // Files to Exclude from Explorer
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.pytest_cache": true,
+        "**/*.pyc": true,
+        "**/node_modules": true,
+        "**/.git": true
+    },
+    // Search Exclusions
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/data": true,
+        "**/results": true,
+        "**/multi_dataset_results": true,
+        "**/.venv": true,
+        "**/build": true
+    },
+    // Tailwind CSS
+    "tailwindCSS.includeLanguages": {
+        "javascript": "javascript",
+        "javascriptreact": "javascript"
+    },
+    // Terminal
+    "terminal.integrated.defaultProfile.linux": "bash",
+    // Extensions Recommendations
+    "extensions.ignoreRecommendations": false
 }

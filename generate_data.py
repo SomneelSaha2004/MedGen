@@ -29,6 +29,231 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+# Helper function to detect CSV delimiter and read CSV files properly
+def detect_delimiter(file_path):
+    """Detect the delimiter used in a CSV file by reading the first few lines."""
+    import csv
+    with open(file_path, 'r', encoding='utf-8') as f:
+        sample = f.read(4096)
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=',;\t|')
+            return dialect.delimiter
+        except csv.Error:
+            return ','
+
+def read_csv_auto(file_path, **kwargs):
+    """Read a CSV file with auto-detected delimiter."""
+    delimiter = detect_delimiter(file_path)
+    logger.info(f"Detected delimiter for {file_path}: '{delimiter}'")
+    return pd.read_csv(file_path, sep=delimiter, **kwargs)
+
+
+# =============================================================================
+# FAST BATCH GENERATION MODE
+# =============================================================================
+def generate_rows_batch(csv_path, n_samples=10, temperature=0.7, top_p=0.9, 
+                        repetition_penalty=1.1, max_tokens=4096, progress_callback=None):
+    """
+    Generate multiple rows in a single LLM call for much faster generation.
+    This is ~10x faster than the feature-by-feature approach.
+    
+    For large requests (>25 rows), this function will make multiple API calls
+    in batches to avoid token limits.
+    
+    Args:
+        csv_path: Path to the CSV file
+        n_samples: Number of samples to generate
+        temperature: Sampling temperature
+        top_p: Nucleus sampling parameter
+        repetition_penalty: Penalty for repetition
+        max_tokens: Maximum tokens to generate
+        progress_callback: Callback function to report progress
+        
+    Returns:
+        pd.DataFrame: Generated data
+    """
+    # For large requests, batch them to avoid token limits
+    BATCH_SIZE = 25  # Generate 25 rows per API call
+    
+    if n_samples > BATCH_SIZE:
+        logger.info(f"FAST MODE: Generating {n_samples} rows in batches of {BATCH_SIZE}")
+        all_rows = []
+        generated_so_far = 0
+        
+        while generated_so_far < n_samples:
+            batch_size = min(BATCH_SIZE, n_samples - generated_so_far)
+            logger.info(f"FAST MODE: Generating batch of {batch_size} rows ({generated_so_far}/{n_samples})")
+            
+            batch_df = _generate_single_batch(
+                csv_path, batch_size, temperature, top_p, 
+                repetition_penalty, max_tokens, None
+            )
+            
+            if batch_df is not None and not batch_df.empty:
+                all_rows.append(batch_df)
+                generated_so_far += len(batch_df)
+            else:
+                logger.warning(f"Batch generation returned empty, stopping early")
+                break
+            
+            if progress_callback:
+                progress_callback(generated_so_far, n_samples)
+        
+        if not all_rows:
+            return None
+        
+        result_df = pd.concat(all_rows, ignore_index=True)
+        logger.info(f"FAST MODE: Successfully generated {len(result_df)} rows total")
+        return result_df
+    else:
+        return _generate_single_batch(
+            csv_path, n_samples, temperature, top_p, 
+            repetition_penalty, max_tokens, progress_callback
+        )
+
+
+def _generate_single_batch(csv_path, n_samples, temperature, top_p, 
+                           repetition_penalty, max_tokens, progress_callback):
+    """Generate a single batch of rows."""
+    import threading
+    import time as time_module
+    
+    logger.info(f"FAST MODE: Generating {n_samples} rows in single batch")
+    
+    # Read the original data
+    df = read_csv_auto(csv_path)
+    columns = df.columns.tolist()
+    
+    # Get sample rows for context (up to 5 examples)
+    sample_size = min(5, len(df))
+    sample_rows = df.sample(n=sample_size).to_dict('records')
+    
+    # Get column statistics
+    column_info = {}
+    for col in columns:
+        col_data = df[col]
+        if pd.api.types.is_numeric_dtype(col_data):
+            column_info[col] = {
+                "type": "numeric",
+                "min": float(col_data.min()),
+                "max": float(col_data.max()),
+                "mean": float(col_data.mean()),
+                "unique_values": int(col_data.nunique())
+            }
+        else:
+            unique_vals = col_data.unique().tolist()
+            column_info[col] = {
+                "type": "categorical",
+                "unique_values": unique_vals if len(unique_vals) <= 20 else unique_vals[:20],
+                "total_unique": len(unique_vals)
+            }
+    
+    # Create prompt for batch generation
+    prompt = f"""Generate {n_samples} synthetic data rows for a dataset with the following structure:
+
+COLUMNS: {json.dumps(columns)}
+
+COLUMN STATISTICS:
+{json.dumps(column_info, indent=2)}
+
+EXAMPLE ROWS FROM ORIGINAL DATA:
+{json.dumps(sample_rows, indent=2)}
+
+Generate {n_samples} NEW synthetic rows that:
+1. Follow the same data distribution and patterns as the examples
+2. Maintain realistic relationships between columns
+3. Stay within the statistical bounds (min/max for numeric, valid categories for categorical)
+4. Are diverse and don't just copy the examples
+
+Return ONLY a JSON array of objects, where each object represents one row with all column names as keys.
+Example format: [{{"col1": value1, "col2": value2, ...}}, ...]
+"""
+
+    # Call OpenAI API
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    try:
+        if progress_callback:
+            progress_callback(0, n_samples)
+        
+        # Use a flag to track if API call is complete
+        api_complete = threading.Event()
+        
+        # Start a thread to simulate progress during API call
+        def simulate_progress():
+            """Simulate progress while waiting for API response"""
+            simulated = 0
+            max_simulated = int(n_samples * 0.85)  # Go up to 85%
+            while not api_complete.is_set() and simulated < max_simulated:
+                time_module.sleep(0.3)  # Update every 300ms
+                simulated = min(simulated + max(1, n_samples // 20), max_simulated)
+                if progress_callback and not api_complete.is_set():
+                    progress_callback(simulated, n_samples)
+        
+        progress_thread = threading.Thread(target=simulate_progress, daemon=True)
+        progress_thread.start()
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            frequency_penalty=max(0, repetition_penalty - 1.0),
+            messages=[
+                {"role": "system", "content": "You are a synthetic data generation expert. Generate realistic data rows that match the statistical properties of the original dataset. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+        
+        # Signal that API call is complete
+        api_complete.set()
+        progress_thread.join(timeout=0.5)
+        
+        # Parse response
+        response_text = response.choices[0].message.content
+        
+        # Handle the response - it might be wrapped in an object
+        try:
+            parsed = json.loads(response_text)
+            if isinstance(parsed, list):
+                generated_rows = parsed
+            elif isinstance(parsed, dict) and 'rows' in parsed:
+                generated_rows = parsed['rows']
+            elif isinstance(parsed, dict) and 'data' in parsed:
+                generated_rows = parsed['data']
+            else:
+                # Try to find the array in the response
+                for key, value in parsed.items():
+                    if isinstance(value, list):
+                        generated_rows = value
+                        break
+                else:
+                    generated_rows = [parsed]
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {e}")
+            return None
+        
+        if progress_callback:
+            progress_callback(n_samples, n_samples)
+        
+        # Create DataFrame
+        generated_df = pd.DataFrame(generated_rows)
+        
+        # Ensure columns match original (reorder and fill missing)
+        for col in columns:
+            if col not in generated_df.columns:
+                generated_df[col] = None
+        generated_df = generated_df[columns]
+        
+        logger.info(f"FAST MODE: Successfully generated {len(generated_df)} rows")
+        return generated_df
+        
+    except Exception as e:
+        logger.error(f"Error in batch generation: {str(e)}")
+        return None
+
+
 # Configuration for LLM parameters
 class LLMConfig:
     def __init__(self, 
@@ -222,8 +447,8 @@ def get_feature_type(csv_path, feature):
     Returns:
         dict: Type information and statistics
     """
-    # Read the CSV
-    df = pd.read_csv(csv_path)
+    # Read the CSV with auto-detected delimiter
+    df = read_csv_auto(csv_path)
     
     # Get the column data
     column_data = df[feature]
@@ -505,8 +730,8 @@ def generate_data(csv_path, n_samples=10, persist_dir="./data/chroma_db", featur
         logger.error("Failed to load or create query engine")
         return None
     
-    # Read the CSV to get column information
-    df = pd.read_csv(csv_path)
+    # Read the CSV to get column information with auto-detected delimiter
+    df = read_csv_auto(csv_path)
     all_features = df.columns.tolist()
     
     # Guess the label column (target variable)
@@ -651,8 +876,8 @@ def build_feature_dependency_graph(csv_path, query_engine):
     Returns:
         nx.DiGraph: Directed graph of feature dependencies
     """
-    # Read the CSV to get column information
-    df = pd.read_csv(csv_path)
+    # Read the CSV to get column information with auto-detected delimiter
+    df = read_csv_auto(csv_path)
     all_features = df.columns.tolist()
     
     # Guess the label column
@@ -847,8 +1072,8 @@ async def generate_data_async(csv_path, n_samples=10, persist_dir="./data/chroma
         logger.error("Failed to load or create query engine")
         return None
     
-    # Read the CSV to get column information
-    df = pd.read_csv(csv_path)
+    # Read the CSV to get column information with auto-detected delimiter
+    df = read_csv_auto(csv_path)
     all_features = df.columns.tolist()
     
     # Guess the label column

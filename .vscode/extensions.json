@@ -1,0 +1,36 @@
+{
+    // ==========================================================================
+    // MedGen Extension Recommendations
+    // ==========================================================================
+    "recommendations": [
+        // Python Development
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        "ms-python.black-formatter",
+        "ms-python.isort",
+        // JavaScript/React Development
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "dsznajder.es7-react-js-snippets",
+        // Docker
+        "ms-azuretools.vscode-docker",
+        // Git
+        "eamodio.gitlens",
+        "mhutchie.git-graph",
+        // Data & CSV
+        "mechatroner.rainbow-csv",
+        "GrapeCity.gc-excelviewer",
+        // Markdown
+        "yzhang.markdown-all-in-one",
+        "bierner.markdown-preview-github-styles",
+        // General Productivity
+        "streetsidesoftware.code-spell-checker",
+        "usernamehw.errorlens",
+        "christian-kohler.path-intellisense",
+        // Tailwind CSS
+        "bradlc.vscode-tailwindcss",
+        // REST API Testing
+        "humao.rest-client"
+    ]
+}

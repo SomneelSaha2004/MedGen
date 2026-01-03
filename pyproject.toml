@@ -1,8 +1,35 @@
 [project]
-name = "cs3264"
-version = "0.1.0"
-description = "Add your description here"
+name = "medgen"
+version = "1.0.0"
+description = "AI-powered synthetic medical data generation and privacy evaluation platform using LLMs with RAG"
 readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "DESU-CLUB", email = ""}
+]
+keywords = [
+    "synthetic-data",
+    "medical-data",
+    "privacy",
+    "llm",
+    "healthcare",
+    "machine-learning",
+    "rag",
+    "anonymization"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Healthcare Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
 requires-python = ">=3.11, <=3.12"
 dependencies = [
     "chromadb>=1.0.0",
@@ -24,3 +51,67 @@ dependencies = [
     "seaborn>=0.13.2",
     "streamlit>=1.43.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/DESU-CLUB/CS3264"
+Repository = "https://github.com/DESU-CLUB/CS3264"
+Documentation = "https://github.com/DESU-CLUB/CS3264#readme"
+Issues = "https://github.com/DESU-CLUB/CS3264/issues"
+
+[project.scripts]
+medgen = "backend:main"
+medgen-eval = "basic_eval_pipeline:main"
+medgen-privacy = "anonymeter_privacy_eval:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["evals"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hatch
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | node_modules
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_gitignore = true
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"

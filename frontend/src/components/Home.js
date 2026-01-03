@@ -1,45 +1,39 @@
-import React from 'react';
-import { 
-  Typography, 
-  Box, 
-  Grid, 
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import AnalyticsIcon from '@mui/icons-material/BarChart';
+import SecurityIcon from '@mui/icons-material/Security';
+import SpeedIcon from '@mui/icons-material/Speed';
+import DataIcon from '@mui/icons-material/Storage';
+import {
+  Box,
+  Button,
   Card,
   CardContent,
-  Button,
+  Grid,
   Paper,
   Stack,
-  Divider,
-  useTheme,
-  Container
+  Typography
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import DataIcon from '@mui/icons-material/Storage';
-import AnalyticsIcon from '@mui/icons-material/BarChart';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import SpeedIcon from '@mui/icons-material/Speed';
-import SecurityIcon from '@mui/icons-material/Security';
 import { Link } from 'react-router-dom';
 
 const Home = () => {
-  const theme = useTheme();
-  
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { 
+    visible: {
       opacity: 1,
-      transition: { 
+      transition: {
         duration: 0.5,
         when: 'beforeChildren',
         staggerChildren: 0.2
       }
     }
   };
-  
+
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: { duration: 0.3 }
     }
@@ -73,13 +67,13 @@ const Home = () => {
       description: "Generate synthetic data that preserves statistical properties without exposing sensitive information from original datasets."
     }
   ];
-  
+
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      style={{ 
+      style={{
         width: '100%',
         padding: 0,
         margin: 0,
@@ -92,10 +86,10 @@ const Home = () => {
       }}
     >
       {/* Hero Section */}
-      <Paper 
+      <Paper
         elevation={0}
-        sx={{ 
-          p: { xs: 3, md: 5 }, 
+        sx={{
+          p: { xs: 3, md: 5 },
           mb: 4,
           borderRadius: '16px',
           backgroundImage: 'linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 40, 20, 0.8) 100%)',
@@ -107,12 +101,12 @@ const Home = () => {
       >
         <motion.div variants={itemVariants}>
           <Grid container spacing={4} alignItems="center" justifyContent="center">
-            <Grid item xs={12} md={7}>
-              <Typography 
-                variant="h2" 
+            <Grid size={{ xs: 12, md: 7 }}>
+              <Typography
+                variant="h2"
                 component="h1"
                 className="cyber-header"
-                sx={{ 
+                sx={{
                   fontWeight: 700,
                   mb: 2,
                   background: 'linear-gradient(90deg, #00E676 0%, #00B0FF 100%)',
@@ -122,11 +116,11 @@ const Home = () => {
               >
                 Synthetic Data Platform
               </Typography>
-              
-              <Typography 
-                variant="h5" 
-                color="text.secondary" 
-                sx={{ 
+
+              <Typography
+                variant="h5"
+                color="text.secondary"
+                sx={{
                   mb: 3,
                   fontWeight: 300,
                   lineHeight: 1.5
@@ -134,23 +128,23 @@ const Home = () => {
               >
                 Generate, explore, and analyze synthetic data powered by GPT-4o Mini
               </Typography>
-              
-              <Typography 
-                variant="body1" 
+
+              <Typography
+                variant="body1"
                 color="text.secondary"
                 sx={{ mb: 4, maxWidth: 580 }}
               >
                 Our platform enables you to create high-quality synthetic datasets, explore data interactively,
                 and get insights through natural language queries - all while maintaining privacy and security.
               </Typography>
-              
+
               <Stack direction="row" spacing={2}>
-                <Button 
-                  variant="contained" 
+                <Button
+                  variant="contained"
                   component={Link}
                   to="/generation"
                   size="large"
-                  sx={{ 
+                  sx={{
                     px: 4,
                     py: 1.5,
                     borderRadius: '8px',
@@ -164,13 +158,13 @@ const Home = () => {
                 >
                   Generate Data
                 </Button>
-                
-                <Button 
+
+                <Button
                   variant="outlined"
                   component={Link}
                   to="/explorer"
                   size="large"
-                  sx={{ 
+                  sx={{
                     px: 4,
                     py: 1.5,
                     borderRadius: '8px',
@@ -186,8 +180,8 @@ const Home = () => {
                 </Button>
               </Stack>
             </Grid>
-            
-            <Grid item xs={12} md={5}>
+
+            <Grid size={{ xs: 12, md: 5 }}>
               <Box
                 sx={{
                   width: '100%',
@@ -209,13 +203,13 @@ const Home = () => {
           </Grid>
         </motion.div>
       </Paper>
-      
+
       {/* Features Section */}
-      <Typography 
-        variant="h4" 
+      <Typography
+        variant="h4"
         component="h2"
         className="cyber-header"
-        sx={{ 
+        sx={{
           mb: 4,
           textAlign: 'center',
           position: 'relative',
@@ -235,8 +229,8 @@ const Home = () => {
       >
         Key Features
       </Typography>
-      
-      <Grid container spacing={3} justifyContent="center" sx={{ 
+
+      <Grid container spacing={3} justifyContent="center" sx={{
         width: '100%',
         maxWidth: '1200px',
         m: 0,
@@ -244,17 +238,17 @@ const Home = () => {
         mx: 'auto'
       }}>
         {features.map((feature, index) => (
-          <Grid item key={index} sx={{ 
+          <Grid key={index} sx={{
             width: { xs: '100%', sm: '300px' },
             padding: 2
           }}>
-            <motion.div 
+            <motion.div
               variants={itemVariants}
               whileHover={{ y: -5, transition: { duration: 0.2 } }}
               style={{ height: '100%', width: '100%' }}
             >
-              <Card 
-                sx={{ 
+              <Card
+                sx={{
                   height: '100%',
                   width: '100%',
                   bgcolor: 'rgba(0, 0, 0, 0.3)',
@@ -273,9 +267,9 @@ const Home = () => {
                 <CardContent sx={{ p: 3, flex: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     {feature.icon}
-                    <Typography 
-                      variant="h6" 
-                      component="h3" 
+                    <Typography
+                      variant="h6"
+                      component="h3"
                       sx={{ ml: 1.5, color: '#00E676' }}
                     >
                       {feature.title}
@@ -290,14 +284,14 @@ const Home = () => {
           </Grid>
         ))}
       </Grid>
-      
+
       {/* How It Works Section */}
       <Box sx={{ mt: 6, mb: 4, width: '100%', mx: 'auto' }}>
-        <Typography 
-          variant="h4" 
+        <Typography
+          variant="h4"
           component="h2"
           className="cyber-header"
-          sx={{ 
+          sx={{
             mb: 4,
             textAlign: 'center',
             position: 'relative',
@@ -317,9 +311,9 @@ const Home = () => {
         >
           How It Works
         </Typography>
-        
-        <Paper 
-          sx={{ 
+
+        <Paper
+          sx={{
             p: 4,
             borderRadius: '12px',
             bgcolor: 'rgba(0, 0, 0, 0.2)',
@@ -330,16 +324,16 @@ const Home = () => {
           }}
         >
           <Grid container spacing={3} justifyContent="center">
-            <Grid item sx={{ 
+            <Grid sx={{
               width: { xs: '100%', sm: '300px' },
               padding: 2
             }}>
               <motion.div variants={itemVariants} style={{ height: '100%', width: '100%' }}>
                 <Box sx={{ textAlign: 'center', p: 2, height: '100%', width: '100%' }}>
-                  <Typography 
-                    variant="h1" 
-                    sx={{ 
-                      fontWeight: 900, 
+                  <Typography
+                    variant="h1"
+                    sx={{
+                      fontWeight: 900,
                       color: 'rgba(0, 230, 118, 0.2)',
                       fontSize: '5rem'
                     }}
@@ -355,17 +349,17 @@ const Home = () => {
                 </Box>
               </motion.div>
             </Grid>
-            
-            <Grid item sx={{ 
+
+            <Grid sx={{
               width: { xs: '100%', sm: '300px' },
               padding: 2
             }}>
               <motion.div variants={itemVariants} style={{ height: '100%', width: '100%' }}>
                 <Box sx={{ textAlign: 'center', p: 2, height: '100%', width: '100%' }}>
-                  <Typography 
-                    variant="h1" 
-                    sx={{ 
-                      fontWeight: 900, 
+                  <Typography
+                    variant="h1"
+                    sx={{
+                      fontWeight: 900,
                       color: 'rgba(0, 230, 118, 0.2)',
                       fontSize: '5rem'
                     }}
@@ -381,17 +375,17 @@ const Home = () => {
                 </Box>
               </motion.div>
             </Grid>
-            
-            <Grid item sx={{ 
+
+            <Grid sx={{
               width: { xs: '100%', sm: '300px' },
               padding: 2
             }}>
               <motion.div variants={itemVariants} style={{ height: '100%', width: '100%' }}>
                 <Box sx={{ textAlign: 'center', p: 2, height: '100%', width: '100%' }}>
-                  <Typography 
-                    variant="h1" 
-                    sx={{ 
-                      fontWeight: 900, 
+                  <Typography
+                    variant="h1"
+                    sx={{
+                      fontWeight: 900,
                       color: 'rgba(0, 230, 118, 0.2)',
                       fontSize: '5rem'
                     }}
@@ -410,7 +404,7 @@ const Home = () => {
           </Grid>
         </Paper>
       </Box>
-      
+
       {/* Call to Action */}
       <Box sx={{ mt: 6, mb: 2, textAlign: 'center', width: '100%' }}>
         <motion.div variants={itemVariants}>
@@ -418,12 +412,12 @@ const Home = () => {
             Ready to start working with data?
           </Typography>
           <Box sx={{ mt: 3 }}>
-            <Button 
+            <Button
               variant="contained"
               component={Link}
               to="/generation"
               size="large"
-              sx={{ 
+              sx={{
                 px: 5,
                 py: 1.5,
                 borderRadius: '8px',

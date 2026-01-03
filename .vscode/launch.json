@@ -1,0 +1,73 @@
+{
+    // ==========================================================================
+    // MedGen Launch Configurations
+    // ==========================================================================
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Backend Server",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend.py",
+            "console": "integratedTerminal",
+            "env": {
+                "FLASK_ENV": "development",
+                "FLASK_DEBUG": "1"
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Main Entry Point",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--debug"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Evaluation Pipeline",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/basic_eval_pipeline.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Multi-Dataset Pipeline",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/multi_dataset_pipeline.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Privacy Evaluation",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/anonymeter_privacy_eval.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Current Python File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Full Stack",
+            "configurations": [
+                "Backend Server"
+            ],
+            "stopAll": true,
+            "preLaunchTask": "Start Frontend"
+        }
+    ]
+}

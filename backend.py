@@ -12,7 +12,7 @@ import shutil
 import numpy as np
 from flask_cors import CORS
 from rag import build_persisted_index, load_persisted_index, query_index
-from generate_data import generate_data, LLMConfig
+from generate_data import generate_data, generate_rows_batch, LLMConfig
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +38,35 @@ def convert_np_types(obj):
     elif isinstance(obj, list):
         return [convert_np_types(item) for item in obj]
     return obj
+
+# Helper function to detect CSV delimiter and read CSV files properly
+def detect_delimiter(file_path):
+    """Detect the delimiter used in a CSV file by reading the first few lines."""
+    import csv
+    with open(file_path, 'r', encoding='utf-8') as f:
+        # Read first 5 lines to detect delimiter
+        sample = f.read(4096)
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=',;\t|')
+            return dialect.delimiter
+        except csv.Error:
+            # Default to comma if detection fails
+            return ','
+
+def read_csv_auto(file_path, **kwargs):
+    """Read a CSV file with auto-detected delimiter."""
+    delimiter = detect_delimiter(file_path)
+    logger.info(f"Detected delimiter for {file_path}: '{delimiter}'")
+    return pd.read_csv(file_path, sep=delimiter, **kwargs)
+
+# Store the detected delimiter for each file
+csv_delimiters = {}
+
+def get_csv_delimiter(file_path):
+    """Get or detect the delimiter for a CSV file."""
+    if file_path not in csv_delimiters:
+        csv_delimiters[file_path] = detect_delimiter(file_path)
+    return csv_delimiters[file_path]
 
 # Custom JSON encoder for NumPy types
 class NumpyEncoder(json.JSONEncoder):
@@ -107,6 +136,20 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 data_status = DataGenerationStatus()
 query_engine = None
 current_csv_file = None  # Global variable to track current CSV file
+
+
+# =============================================================================
+# Health Check Endpoint
+# =============================================================================
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for container orchestration and monitoring"""
+    return jsonify({
+        "status": "healthy",
+        "service": "medgen-backend",
+        "version": "1.0.0"
+    }), 200
+
 
 def create_features_dir():
     """Create features directory for feature documents"""
@@ -206,8 +249,16 @@ def cleanup_previous_data():
     except Exception as e:
         logger.error(f"Error cleaning up data: {str(e)}")
 
-def generate_data_background(file_path, n_samples=1000, **llm_params):
-    """Background task for data generation"""
+def generate_data_background(file_path, n_samples=1000, use_fast_mode=True, **llm_params):
+    """Background task for data generation
+    
+    Args:
+        file_path: Path to the CSV file
+        n_samples: Number of samples to generate
+        use_fast_mode: If True, use fast batch generation (1 API call per batch)
+                      If False, use detailed feature-by-feature generation
+        **llm_params: LLM parameters (temperature, top_p, etc.)
+    """
     try:
         global data_status
         data_status.start_generation(n_samples, file_path)
@@ -224,23 +275,40 @@ def generate_data_background(file_path, n_samples=1000, **llm_params):
             if current_row % max(1, int(total_rows/10)) == 0 or current_row == total_rows:
                 logger.info(f"Generation progress: {current_row}/{total_rows} rows ({progress_pct:.1f}%)")
         
-        # Generate the data, passing the progress callback
-        generated_df = generate_data(
-            csv_path=file_path,
-            n_samples=n_samples,
-            persist_dir="./data/chroma_db",
-            features_dir="./data/features/",
-            collection_name="dquery",
-            output_path="./data/generated/generated_data.csv",
-            progress_callback=progress_callback,  # Pass the callback
-            **llm_params  # Pass through all LLM parameters
-        )
+        # Use fast batch mode by default (much faster - single API call)
+        if use_fast_mode:
+            logger.info(f"Using FAST batch generation mode for {n_samples} samples")
+            generated_df = generate_rows_batch(
+                csv_path=file_path,
+                n_samples=n_samples,
+                temperature=llm_params.get('temperature', 0.7),
+                top_p=llm_params.get('topP', llm_params.get('top_p', 0.9)),
+                repetition_penalty=llm_params.get('repetitionPenalty', llm_params.get('repetition_penalty', 1.1)),
+                max_tokens=llm_params.get('maxTokens', llm_params.get('max_tokens', 4096)),
+                progress_callback=progress_callback
+            )
+        else:
+            # Use detailed feature-by-feature generation (slower but more precise)
+            logger.info(f"Using detailed feature-by-feature generation for {n_samples} samples")
+            generated_df = generate_data(
+                csv_path=file_path,
+                n_samples=n_samples,
+                persist_dir="./data/chroma_db",
+                features_dir="./data/features/",
+                collection_name="dquery",
+                output_path="./data/generated/generated_data.csv",
+                progress_callback=progress_callback,
+                **llm_params
+            )
+        
+        if generated_df is None:
+            raise Exception("Data generation returned None")
         
         # Store the generated data
         data_status.complete_generation(generated_df)
         
-        # Load the original data
-        original_df = pd.read_csv(file_path)
+        # Load the original data with auto-detected delimiter
+        original_df = read_csv_auto(file_path)
         
         # Concatenate original data and generated data
         combined_df = pd.concat([original_df, generated_df], ignore_index=True)
@@ -281,7 +349,7 @@ def describe_csv(file_path=None, dataframe=None):
         if dataframe is not None:
             df = dataframe
         elif file_path:
-            df = pd.read_csv(file_path)
+            df = read_csv_auto(file_path)
         else:
             return {"error": "No data provided"}
         
@@ -362,8 +430,11 @@ def upload_file():
             # Clean up previous data
             cleanup_previous_data()
             
-            # Read basic info about the file
-            df = pd.read_csv(file_path)
+            # Read basic info about the file with auto-detected delimiter
+            df = read_csv_auto(file_path)
+            
+            # Store the detected delimiter for later use
+            csv_delimiters[file_path] = get_csv_delimiter(file_path)
             
             # Create features directory and prepare feature documents
             features_dir = create_features_dir()
@@ -487,8 +558,8 @@ def stats_query():
         if not uploaded_file:
             return jsonify({'error': 'No data available. Please upload a CSV file first.'}), 400
         
-        # Read the CSV file
-        df = pd.read_csv(uploaded_file)
+        # Read the CSV file with auto-detected delimiter
+        df = read_csv_auto(uploaded_file)
         
         if chart_type == 'overview':
             # Basic statistics for all numeric columns
@@ -664,11 +735,18 @@ def generate_data_endpoint():
         repetition_penalty = float(params.get('repetitionPenalty', 1.1))
         max_tokens = int(params.get('maxTokens', 2048))
         
+        # Get generation mode (fast or deep)
+        generation_mode = params.get('generationMode', 'fast')
+        use_fast_mode = generation_mode != 'deep'
+        
+        logger.info(f"Starting data generation: {n_samples} samples, mode={generation_mode}")
+        
         # Start the data generation in a background thread
         thread = threading.Thread(
             target=generate_data_background,
             args=(data_status.current_file, n_samples),
             kwargs={
+                'use_fast_mode': use_fast_mode,
                 'temperature': temperature,
                 'top_p': top_p,
                 'repetition_penalty': repetition_penalty,
@@ -678,7 +756,7 @@ def generate_data_endpoint():
         thread.daemon = True
         thread.start()
         
-        return jsonify({"success": True, "message": "Data generation started"}), 200
+        return jsonify({"success": True, "message": "Data generation started", "mode": generation_mode}), 200
         
     except Exception as e:
         logger.error(f"Error in generate_data endpoint: {str(e)}")
@@ -689,22 +767,38 @@ def get_generated_data():
     try:
         show_combined = request.args.get('combined', 'true').lower() == 'true'
         
+        # Check if we have generated data
         if data_status.generated_data is None:
+            logger.warning("get_generated_data called but generated_data is None")
             return jsonify({"success": False, "error": "No data has been generated yet"}), 404
+        
+        # Handle case where generated_data might be empty
+        if isinstance(data_status.generated_data, pd.DataFrame) and data_status.generated_data.empty:
+            logger.warning("get_generated_data called but generated_data DataFrame is empty")
+            return jsonify({"success": False, "error": "Generated data is empty"}), 404
+            
+        # Get the length of generated data safely
+        try:
+            generated_count = len(data_status.generated_data)
+        except Exception as e:
+            logger.error(f"Error getting length of generated_data: {e}")
+            generated_count = 0
             
         # Check if we should show combined data and if it exists
         if show_combined and data_status.result_path and os.path.exists(data_status.result_path):
-            # Load combined data from file
+            # Load combined data from file (generated data is always comma-separated)
             combined_df = pd.read_csv(data_status.result_path)
             
             # Get the original data count to mark which rows are original vs. synthetic
-            original_count = len(combined_df) - len(data_status.generated_data)
+            original_count = max(0, len(combined_df) - generated_count)
             
             # Add a column to indicate if the row is original or synthetic
-            combined_df['is_synthetic'] = [False] * original_count + [True] * len(data_status.generated_data)
+            combined_df['is_synthetic'] = [False] * original_count + [True] * generated_count
             
             # Convert the DataFrame to a dict for JSON serialization
             data_dict = combined_df.to_dict(orient='records')
+            
+            logger.info(f"Returning combined data: {len(data_dict)} rows ({original_count} original, {generated_count} synthetic)")
             
             return jsonify({
                 "success": True,
@@ -712,12 +806,14 @@ def get_generated_data():
                 "columns": combined_df.columns.tolist(),
                 "rowCount": len(data_dict),
                 "originalCount": original_count,
-                "syntheticCount": len(data_status.generated_data),
+                "syntheticCount": generated_count,
                 "isCombined": True
             }), 200
         else:
             # Just return the synthetic data
             data_dict = data_status.generated_data.to_dict(orient='records')
+            
+            logger.info(f"Returning synthetic data only: {len(data_dict)} rows")
             
             return jsonify({
                 "success": True,
@@ -730,7 +826,7 @@ def get_generated_data():
             }), 200
             
     except Exception as e:
-        logger.error(f"Error in get_generated_data endpoint: {str(e)}")
+        logger.error(f"Error in get_generated_data endpoint: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 # Helper function to get the uploaded CSV
@@ -1141,7 +1237,7 @@ def check_csv_status():
         
         # Try to read basic info about the file
         try:
-            df = pd.read_csv(current_csv_file)
+            df = read_csv_auto(current_csv_file)
             rows = len(df)
             columns = len(df.columns)
             column_names = df.columns.tolist()
@@ -1202,8 +1298,8 @@ def query_csv():
                 'error': 'No query provided'
             }), 400
         
-        # Read the CSV file
-        df = pd.read_csv(current_csv_file)
+        # Read the CSV file with auto-detected delimiter
+        df = read_csv_auto(current_csv_file)
         
         try:
             # Execute the query
@@ -1245,6 +1341,623 @@ def query_csv():
             'success': False,
             'error': str(e)
         }), 500
+
+
+# =============================================================================
+# Download and Export Endpoints
+# =============================================================================
+
+@app.route('/download_data', methods=['GET'])
+def download_data():
+    """Download generated data as CSV file"""
+    global data_status
+    
+    try:
+        data_type = request.args.get('type', 'synthetic')  # 'synthetic', 'combined', or 'original'
+        
+        if data_type == 'synthetic':
+            if data_status.generated_data is None:
+                return jsonify({"success": False, "error": "No synthetic data available"}), 404
+            
+            # Create CSV from generated data
+            csv_data = data_status.generated_data.to_csv(index=False)
+            filename = "synthetic_data.csv"
+            
+        elif data_type == 'combined':
+            if data_status.result_path is None or not os.path.exists(data_status.result_path):
+                return jsonify({"success": False, "error": "No combined data available"}), 404
+            
+            with open(data_status.result_path, 'r') as f:
+                csv_data = f.read()
+            filename = "combined_data.csv"
+            
+        elif data_type == 'original':
+            if current_csv_file is None or not os.path.exists(current_csv_file):
+                return jsonify({"success": False, "error": "No original data available"}), 404
+            
+            # Read original file with auto-detected delimiter
+            df = read_csv_auto(current_csv_file)
+            csv_data = df.to_csv(index=False)
+            filename = os.path.basename(current_csv_file)
+            
+        else:
+            return jsonify({"success": False, "error": "Invalid data type. Use 'synthetic', 'combined', or 'original'"}), 400
+        
+        # Return as file download
+        response = Response(
+            csv_data,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename={filename}',
+                'Content-Type': 'text/csv; charset=utf-8'
+            }
+        )
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in download_data endpoint: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/use_generated_data', methods=['POST'])
+def use_generated_data():
+    """Switch the active dataset to the generated/combined data for analysis"""
+    global current_csv_file
+    global data_status
+    global query_engine
+    
+    try:
+        data = request.json or {}
+        use_combined = data.get('useCombined', True)
+        
+        if use_combined:
+            # Use the combined data (original + synthetic)
+            if data_status.result_path is None or not os.path.exists(data_status.result_path):
+                return jsonify({
+                    "success": False,
+                    "error": "No combined data available. Please generate data first."
+                }), 404
+            
+            target_path = data_status.result_path
+            data_name = "Combined (Original + Synthetic)"
+        else:
+            # Use only the synthetic data
+            synthetic_path = "./data/generated/synthetic_data.csv"
+            if not os.path.exists(synthetic_path):
+                return jsonify({
+                    "success": False,
+                    "error": "No synthetic data available. Please generate data first."
+                }), 404
+            
+            target_path = synthetic_path
+            data_name = "Synthetic Only"
+        
+        # Read the data
+        df = pd.read_csv(target_path)
+        
+        # Set as current CSV file
+        current_csv_file = target_path
+        data_status.current_file = target_path
+        
+        # Prepare feature documents for RAG
+        features_dir = create_features_dir()
+        prepare_feature_documents(df, features_dir)
+        
+        # Build index for RAG
+        query_engine = build_persisted_index(features_dir=features_dir)
+        
+        logger.info(f"Switched active dataset to {data_name}: {target_path}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully switched to {data_name}",
+            "filename": os.path.basename(target_path),
+            "name": data_name,
+            "rows": len(df),
+            "columns": df.columns.tolist(),
+            "columnCount": len(df.columns),
+            "hasCSV": True
+        })
+        
+    except Exception as e:
+        logger.error(f"Error switching to generated data: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/data_availability', methods=['GET'])
+def check_data_availability():
+    """Check what data is available for download and analysis"""
+    global data_status
+    global current_csv_file
+    
+    try:
+        synthetic_path = "./data/generated/synthetic_data.csv"
+        
+        availability = {
+            "hasOriginal": current_csv_file is not None and os.path.exists(current_csv_file),
+            "hasSynthetic": data_status.generated_data is not None or os.path.exists(synthetic_path),
+            "hasCombined": data_status.result_path is not None and os.path.exists(data_status.result_path),
+            "originalFile": os.path.basename(current_csv_file) if current_csv_file else None,
+            "syntheticRows": len(data_status.generated_data) if data_status.generated_data is not None else 0,
+            "combinedRows": 0,
+            "originalRows": 0
+        }
+        
+        # Get row counts if available
+        if availability["hasCombined"]:
+            try:
+                combined_df = pd.read_csv(data_status.result_path)
+                availability["combinedRows"] = len(combined_df)
+            except:
+                pass
+        
+        if availability["hasOriginal"]:
+            try:
+                original_df = read_csv_auto(current_csv_file)
+                availability["originalRows"] = len(original_df)
+            except:
+                pass
+        
+        return jsonify({
+            "success": True,
+            **availability
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking data availability: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# =============================================================================
+# Dataset Management System
+# =============================================================================
+
+SAMPLE_DATASETS_DIR = "./evals/dataset"
+SAVED_DATASETS_DIR = "./data/saved_datasets"
+DATASETS_METADATA_FILE = "./data/datasets_metadata.json"
+
+# Ensure saved datasets directory exists
+os.makedirs(SAVED_DATASETS_DIR, exist_ok=True)
+
+SAMPLE_DATASETS_INFO = {
+    "pima-diabetes.csv": {
+        "name": "Pima Indians Diabetes",
+        "description": "Classic diabetes dataset from the National Institute of Diabetes. Contains health metrics like glucose, blood pressure, BMI, and diabetes outcome for 768 Pima Indian women.",
+        "rows": 768,
+        "features": ["Pregnancies", "Glucose", "BloodPressure", "SkinThickness", "Insulin", "BMI", "DiabetesPedigreeFunction", "Age", "Outcome"],
+        "target": "Outcome (0/1)",
+        "category": "sample"
+    },
+    "diabetes_prediction_dataset.csv": {
+        "name": "Diabetes Prediction Dataset",
+        "description": "Comprehensive diabetes prediction dataset with demographics and health indicators including gender, age, hypertension, heart disease, smoking history, BMI, HbA1c, and blood glucose levels.",
+        "rows": 100000,
+        "features": ["gender", "age", "hypertension", "heart_disease", "smoking_history", "bmi", "HbA1c_level", "blood_glucose_level", "diabetes"],
+        "target": "diabetes (0/1)",
+        "category": "sample"
+    },
+    "andrew_diabetes.csv": {
+        "name": "Andrew's Diabetes Dataset",
+        "description": "Curated diabetes dataset with key health metrics for diabetes classification. Good for testing and experimentation.",
+        "rows": 520,
+        "features": ["Age", "Gender", "Polyuria", "Polydipsia", "sudden weight loss", "weakness", "Polyphagia", "Genital thrush", "visual blurring", "Itching", "Irritability", "delayed healing", "partial paresis", "muscle stiffness", "Alopecia", "Obesity", "class"],
+        "target": "class (Positive/Negative)",
+        "category": "sample"
+    }
+}
+
+
+def load_datasets_metadata():
+    """Load saved datasets metadata from file"""
+    if os.path.exists(DATASETS_METADATA_FILE):
+        try:
+            with open(DATASETS_METADATA_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+
+def save_datasets_metadata(metadata):
+    """Save datasets metadata to file"""
+    os.makedirs(os.path.dirname(DATASETS_METADATA_FILE), exist_ok=True)
+    with open(DATASETS_METADATA_FILE, 'w') as f:
+        json.dump(metadata, f, indent=2)
+
+
+@app.route('/datasets', methods=['GET'])
+def list_all_datasets():
+    """List all available datasets - both sample and saved"""
+    try:
+        datasets = []
+        
+        # Add sample datasets
+        for filename, info in SAMPLE_DATASETS_INFO.items():
+            filepath = os.path.join(SAMPLE_DATASETS_DIR, filename)
+            if os.path.exists(filepath):
+                datasets.append({
+                    "id": f"sample:{filename}",
+                    "filename": filename,
+                    "name": info["name"],
+                    "description": info["description"],
+                    "rows": info["rows"],
+                    "features": info.get("features", []),
+                    "target": info.get("target", ""),
+                    "category": "sample",
+                    "path": filepath,
+                    "canDelete": False
+                })
+        
+        # Add saved datasets
+        saved_metadata = load_datasets_metadata()
+        for dataset_id, info in saved_metadata.items():
+            filepath = os.path.join(SAVED_DATASETS_DIR, info.get("filename", ""))
+            if os.path.exists(filepath):
+                datasets.append({
+                    "id": dataset_id,
+                    "filename": info.get("filename", ""),
+                    "name": info.get("name", "Unnamed Dataset"),
+                    "description": info.get("description", ""),
+                    "rows": info.get("rows", 0),
+                    "columns": info.get("columns", []),
+                    "category": info.get("category", "saved"),
+                    "createdAt": info.get("createdAt", ""),
+                    "sourceDataset": info.get("sourceDataset", ""),
+                    "path": filepath,
+                    "canDelete": True
+                })
+        
+        # Check which dataset is currently active
+        active_dataset_id = None
+        if current_csv_file:
+            for ds in datasets:
+                if ds["path"] == current_csv_file:
+                    active_dataset_id = ds["id"]
+                    break
+        
+        return jsonify({
+            "success": True,
+            "datasets": datasets,
+            "count": len(datasets),
+            "activeDatasetId": active_dataset_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error listing datasets: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/datasets/<path:dataset_id>/activate', methods=['POST'])
+def activate_dataset(dataset_id):
+    """Activate a dataset for analysis and generation"""
+    global current_csv_file
+    global data_status
+    global query_engine
+    
+    try:
+        # Parse dataset ID
+        if dataset_id.startswith("sample:"):
+            filename = dataset_id.replace("sample:", "")
+            if filename not in SAMPLE_DATASETS_INFO:
+                return jsonify({"success": False, "error": "Invalid sample dataset"}), 400
+            filepath = os.path.join(SAMPLE_DATASETS_DIR, filename)
+            info = SAMPLE_DATASETS_INFO[filename]
+            name = info["name"]
+        else:
+            # Saved dataset
+            saved_metadata = load_datasets_metadata()
+            if dataset_id not in saved_metadata:
+                return jsonify({"success": False, "error": "Dataset not found"}), 404
+            info = saved_metadata[dataset_id]
+            filepath = os.path.join(SAVED_DATASETS_DIR, info.get("filename", ""))
+            name = info.get("name", "Saved Dataset")
+        
+        if not os.path.exists(filepath):
+            return jsonify({"success": False, "error": "Dataset file not found"}), 404
+        
+        # Read the dataset
+        df = read_csv_auto(filepath)
+        
+        # Set as current CSV file
+        current_csv_file = filepath
+        data_status.current_file = filepath
+        
+        # Prepare feature documents for RAG
+        features_dir = create_features_dir()
+        prepare_feature_documents(df, features_dir)
+        
+        # Build index for RAG
+        query_engine = build_persisted_index(features_dir=features_dir)
+        
+        logger.info(f"Activated dataset: {name} ({filepath})")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully activated {name}",
+            "datasetId": dataset_id,
+            "name": name,
+            "rows": len(df),
+            "columns": df.columns.tolist(),
+            "columnCount": len(df.columns),
+            "hasCSV": True
+        })
+        
+    except Exception as e:
+        logger.error(f"Error activating dataset: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/datasets/save', methods=['POST'])
+def save_dataset():
+    """Save generated data as a new dataset"""
+    global data_status
+    
+    try:
+        data = request.json or {}
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+        save_type = data.get('type', 'synthetic')  # 'synthetic' or 'combined'
+        
+        if not name:
+            return jsonify({"success": False, "error": "Dataset name is required"}), 400
+        
+        # Get the data to save
+        if save_type == 'combined':
+            if data_status.result_path is None or not os.path.exists(data_status.result_path):
+                return jsonify({"success": False, "error": "No combined data available"}), 404
+            source_df = pd.read_csv(data_status.result_path)
+            category = "generated_combined"
+        else:
+            if data_status.generated_data is None:
+                return jsonify({"success": False, "error": "No synthetic data available"}), 404
+            source_df = data_status.generated_data
+            category = "generated_synthetic"
+        
+        # Generate unique filename and ID
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        safe_name = "".join(c for c in name if c.isalnum() or c in "._- ").strip()
+        filename = f"{safe_name}_{timestamp}.csv"
+        dataset_id = f"saved:{timestamp}_{safe_name}"
+        
+        # Save the CSV file
+        filepath = os.path.join(SAVED_DATASETS_DIR, filename)
+        source_df.to_csv(filepath, index=False)
+        
+        # Get source dataset info
+        source_dataset = None
+        if current_csv_file:
+            source_dataset = os.path.basename(current_csv_file)
+        
+        # Save metadata
+        saved_metadata = load_datasets_metadata()
+        saved_metadata[dataset_id] = {
+            "filename": filename,
+            "name": name,
+            "description": description,
+            "rows": len(source_df),
+            "columns": source_df.columns.tolist(),
+            "category": category,
+            "createdAt": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "sourceDataset": source_dataset
+        }
+        save_datasets_metadata(saved_metadata)
+        
+        logger.info(f"Saved dataset: {name} ({filename})")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully saved dataset: {name}",
+            "datasetId": dataset_id,
+            "filename": filename,
+            "rows": len(source_df)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error saving dataset: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/datasets/<path:dataset_id>', methods=['DELETE'])
+def delete_saved_dataset(dataset_id):
+    """Delete a saved dataset"""
+    try:
+        # Only allow deleting saved datasets
+        if dataset_id.startswith("sample:"):
+            return jsonify({"success": False, "error": "Cannot delete sample datasets"}), 400
+        
+        saved_metadata = load_datasets_metadata()
+        if dataset_id not in saved_metadata:
+            return jsonify({"success": False, "error": "Dataset not found"}), 404
+        
+        info = saved_metadata[dataset_id]
+        filepath = os.path.join(SAVED_DATASETS_DIR, info.get("filename", ""))
+        
+        # Delete the file
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        
+        # Remove from metadata
+        del saved_metadata[dataset_id]
+        save_datasets_metadata(saved_metadata)
+        
+        logger.info(f"Deleted dataset: {info.get('name', dataset_id)}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully deleted dataset: {info.get('name', 'Dataset')}"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting dataset: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/datasets/<path:dataset_id>/preview', methods=['GET'])
+def preview_dataset(dataset_id):
+    """Get a preview of a dataset (first 100 rows)"""
+    try:
+        # Parse dataset ID
+        if dataset_id.startswith("sample:"):
+            filename = dataset_id.replace("sample:", "")
+            if filename not in SAMPLE_DATASETS_INFO:
+                return jsonify({"success": False, "error": "Invalid sample dataset"}), 400
+            filepath = os.path.join(SAMPLE_DATASETS_DIR, filename)
+        else:
+            saved_metadata = load_datasets_metadata()
+            if dataset_id not in saved_metadata:
+                return jsonify({"success": False, "error": "Dataset not found"}), 404
+            info = saved_metadata[dataset_id]
+            filepath = os.path.join(SAVED_DATASETS_DIR, info.get("filename", ""))
+        
+        if not os.path.exists(filepath):
+            return jsonify({"success": False, "error": "Dataset file not found"}), 404
+        
+        # Read and return preview
+        df = read_csv_auto(filepath)
+        preview_df = df.head(100)
+        
+        return jsonify({
+            "success": True,
+            "data": preview_df.to_dict(orient='records'),
+            "columns": df.columns.tolist(),
+            "totalRows": len(df),
+            "previewRows": len(preview_df)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error previewing dataset: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# =============================================================================
+# Legacy Sample Datasets Endpoints (for backward compatibility)
+# =============================================================================
+
+@app.route('/sample_datasets', methods=['GET'])
+def list_sample_datasets():
+    """List available sample datasets for users to choose from"""
+    try:
+        datasets = []
+        
+        for filename, info in SAMPLE_DATASETS_INFO.items():
+            filepath = os.path.join(SAMPLE_DATASETS_DIR, filename)
+            if os.path.exists(filepath):
+                datasets.append({
+                    "filename": filename,
+                    "name": info["name"],
+                    "description": info["description"],
+                    "rows": info["rows"],
+                    "features": info["features"],
+                    "target": info["target"],
+                    "available": True
+                })
+        
+        return jsonify({
+            "success": True,
+            "datasets": datasets,
+            "count": len(datasets)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error listing sample datasets: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/use_sample_dataset', methods=['POST'])
+def use_sample_dataset():
+    """Use a sample dataset as the current working dataset"""
+    global current_csv_file
+    global data_status
+    global query_engine
+    
+    try:
+        data = request.json
+        filename = data.get('filename')
+        
+        if not filename:
+            return jsonify({
+                "success": False,
+                "error": "No filename provided"
+            }), 400
+        
+        # Security check - ensure filename is in our allowed list
+        if filename not in SAMPLE_DATASETS_INFO:
+            return jsonify({
+                "success": False,
+                "error": "Invalid dataset selected"
+            }), 400
+        
+        filepath = os.path.join(SAMPLE_DATASETS_DIR, filename)
+        
+        if not os.path.exists(filepath):
+            return jsonify({
+                "success": False,
+                "error": f"Dataset file not found: {filename}"
+            }), 404
+        
+        # Read the dataset with auto-detected delimiter
+        df = read_csv_auto(filepath)
+        
+        # Store the detected delimiter for later use
+        csv_delimiters[filepath] = get_csv_delimiter(filepath)
+        
+        # Set as current CSV file
+        current_csv_file = filepath
+        data_status.current_file = filepath
+        
+        # Prepare feature documents for RAG
+        features_dir = create_features_dir()
+        prepare_feature_documents(df, features_dir)
+        
+        # Build index for RAG
+        global query_engine
+        query_engine = build_persisted_index(features_dir=features_dir)
+        
+        info = SAMPLE_DATASETS_INFO[filename]
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully loaded {info['name']}",
+            "filename": filename,
+            "name": info["name"],
+            "description": info["description"],
+            "rows": len(df),
+            "columns": df.columns.tolist(),
+            "columnCount": len(df.columns),
+            "hasCSV": True
+        })
+        
+    except Exception as e:
+        logger.error(f"Error using sample dataset: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 
 if __name__ == '__main__':
     logger.info("Starting Flask application")

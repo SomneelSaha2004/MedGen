@@ -1,25 +1,25 @@
-import React, { useState } from 'react';
-import { 
-  Box, 
-  TextField, 
-  Button, 
-  TableContainer, 
-  Table, 
-  TableHead, 
-  TableBody, 
-  TableRow, 
-  TableCell, 
-  Paper, 
-  Typography,
+import CodeIcon from '@mui/icons-material/Code';
+import InfoIcon from '@mui/icons-material/Info';
+import SearchIcon from '@mui/icons-material/Search';
+import {
   Alert,
-  CircularProgress,
+  Box,
+  Button,
   Chip,
-  Divider
+  CircularProgress,
+  Divider,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import CodeIcon from '@mui/icons-material/Code';
-import SearchIcon from '@mui/icons-material/Search';
-import InfoIcon from '@mui/icons-material/Info';
+import { useState } from 'react';
 import api from '../services/api';
 
 const QueryInterface = ({ filePreview }) => {
@@ -27,22 +27,23 @@ const QueryInterface = ({ filePreview }) => {
   const [queryResult, setQueryResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [examples, setExamples] = useState([
-    { 
-      label: 'Equal to', 
-      query: `column_name == 'value'` 
+    {
+      label: 'Equal to',
+      query: `column_name == 'value'`
     },
-    { 
-      label: 'Greater than', 
-      query: 'numeric_column > 100' 
+    {
+      label: 'Greater than',
+      query: 'numeric_column > 100'
     },
-    { 
-      label: 'Contains text', 
-      query: "text_column.str.contains('pattern')" 
+    {
+      label: 'Contains text',
+      query: "text_column.str.contains('pattern')"
     },
-    { 
-      label: 'AND condition', 
-      query: "column1 > 0 and column2 == 'value'" 
+    {
+      label: 'AND condition',
+      query: "column1 > 0 and column2 == 'value'"
     },
   ]);
 
@@ -59,10 +60,10 @@ const QueryInterface = ({ filePreview }) => {
   // Handle query submission
   const handleSubmitQuery = async () => {
     if (!queryString.trim()) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await api.queryCSV(queryString);
       setQueryResult(result);
@@ -80,7 +81,7 @@ const QueryInterface = ({ filePreview }) => {
       <Typography variant="subtitle1" sx={{ mb: 1 }}>
         Enter a pandas query to filter the data:
       </Typography>
-      
+
       <TextField
         fullWidth
         variant="outlined"
@@ -105,14 +106,14 @@ const QueryInterface = ({ filePreview }) => {
           startAdornment: <CodeIcon sx={{ mr: 1, color: 'rgba(0, 230, 118, 0.7)' }} />,
         }}
       />
-      
+
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Button
           variant="contained"
           onClick={handleSubmitQuery}
           disabled={isLoading || !queryString.trim()}
           startIcon={<SearchIcon />}
-          sx={{ 
+          sx={{
             borderRadius: '8px',
             mb: { xs: 1, sm: 0 }
           }}
@@ -120,11 +121,11 @@ const QueryInterface = ({ filePreview }) => {
         >
           {isLoading ? 'Running Query...' : 'Run Query'}
         </Button>
-        
+
         <Typography variant="body2" sx={{ ml: 2, mr: 1, color: 'text.secondary' }}>
           Examples:
         </Typography>
-        
+
         {examples.map((example, index) => (
           <Chip
             key={index}
@@ -133,7 +134,7 @@ const QueryInterface = ({ filePreview }) => {
             color="primary"
             variant="outlined"
             onClick={() => setExampleQuery(example.query)}
-            sx={{ 
+            sx={{
               borderColor: 'rgba(0, 230, 118, 0.4)',
               '&:hover': {
                 borderColor: 'rgba(0, 230, 118, 0.7)',
@@ -143,19 +144,19 @@ const QueryInterface = ({ filePreview }) => {
           />
         ))}
       </Box>
-      
+
       <Divider sx={{ my: 2, borderColor: 'rgba(0, 230, 118, 0.2)' }} />
-      
+
       {isLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
           <CircularProgress sx={{ color: '#00E676' }} />
         </Box>
       )}
-      
+
       {error && (
-        <Alert 
-          severity="error" 
-          sx={{ 
+        <Alert
+          severity="error"
+          sx={{
             mb: 3,
             border: '1px solid rgba(255, 82, 82, 0.3)'
           }}
@@ -163,7 +164,7 @@ const QueryInterface = ({ filePreview }) => {
           {error}
         </Alert>
       )}
-      
+
       {!isLoading && !error && queryResult && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -175,27 +176,27 @@ const QueryInterface = ({ filePreview }) => {
               Query Results
             </Typography>
             <Box>
-              <Chip 
-                label={`${queryResult.matchedRowCount} rows matched`} 
-                size="small" 
+              <Chip
+                label={`${queryResult.matchedRowCount} rows matched`}
+                size="small"
                 sx={{ mr: 1, bgcolor: 'rgba(0, 230, 118, 0.1)' }}
               />
               {queryResult.truncated && (
-                <Chip 
-                  icon={<InfoIcon fontSize="small" />} 
-                  label="Showing first 100 rows" 
-                  size="small" 
+                <Chip
+                  icon={<InfoIcon fontSize="small" />}
+                  label="Showing first 100 rows"
+                  size="small"
                   sx={{ bgcolor: 'rgba(255, 193, 7, 0.1)', color: '#FFC107' }}
                 />
               )}
             </Box>
           </Box>
-          
+
           {queryResult.data && queryResult.data.length > 0 ? (
-            <TableContainer 
-              component={Paper} 
-              sx={{ 
-                maxHeight: 400, 
+            <TableContainer
+              component={Paper}
+              sx={{
+                maxHeight: 400,
                 border: '1px solid rgba(0, 230, 118, 0.2)',
                 borderRadius: '8px',
                 overflow: 'auto',
@@ -238,7 +239,7 @@ const QueryInterface = ({ filePreview }) => {
           )}
         </motion.div>
       )}
-      
+
       <Box sx={{ mt: 3 }}>
         <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
           <InfoIcon fontSize="small" sx={{ mr: 1, color: 'rgba(0, 230, 118, 0.7)' }} />

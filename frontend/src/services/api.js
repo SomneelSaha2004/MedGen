@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000';
-
-// Flag to use dummy endpoints for testing - permanently set to false
-const USE_DUMMY_ENDPOINTS = false;
+// Determine API URL based on environment
+// In development/Codespaces, use relative URLs which will be proxied
+// The proxy is configured in package.json to forward to localhost:5000
+const API_URL = process.env.REACT_APP_API_URL || '';
 
 // Configure axios defaults
 axios.defaults.withCredentials = false;
@@ -15,11 +15,11 @@ const api = {
       // Always use real endpoint - dummy endpoint code removed
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await axios.post(`${API_URL}/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
+
       return response.data;
     } catch (error) {
       console.error('Error in uploadFile:', error);
@@ -34,7 +34,7 @@ const api = {
       }
     }
   },
-  
+
   // Delete the current CSV file
   deleteCurrentCSV: async () => {
     try {
@@ -51,7 +51,7 @@ const api = {
       }
     }
   },
-  
+
   // Get generation status
   getGenerationStatus: async () => {
     try {
@@ -70,7 +70,7 @@ const api = {
       };
     }
   },
-  
+
   // Stream analysis for a query
   streamAnalysis: async (query, onProgressCallback) => {
     try {
@@ -80,14 +80,14 @@ const api = {
       }, {
         responseType: 'stream'
       });
-      
+
       return response;
     } catch (error) {
       console.error('Error in streamAnalysis:', error);
       throw error;
     }
   },
-  
+
   // Regular GET request
   get: async (endpoint) => {
     try {
@@ -96,7 +96,7 @@ const api = {
         console.error(`Request to dummy endpoint ${endpoint} blocked`);
         throw new Error('Dummy endpoints are disabled');
       }
-      
+
       console.log(`Making GET request to: ${API_URL}${endpoint}`);
       const response = await axios.get(`${API_URL}${endpoint}`);
       return response;
@@ -117,7 +117,7 @@ const api = {
       }
     }
   },
-  
+
   // Regular POST request
   post: async (endpoint, data) => {
     try {
@@ -126,7 +126,7 @@ const api = {
         console.error(`Request to dummy endpoint ${endpoint} blocked`);
         throw new Error('Dummy endpoints are disabled');
       }
-      
+
       console.log(`Making POST request to: ${API_URL}${endpoint}`, data);
       const response = await axios.post(`${API_URL}${endpoint}`, data);
       return response;
@@ -147,27 +147,27 @@ const api = {
       }
     }
   },
-  
+
   // Helper for handling streaming responses
   handleStreamResponse: async (response, onContentCallback, onInfoCallback, onErrorCallback, onCompleteCallback) => {
     const reader = response.data.getReader();
     const decoder = new TextDecoder();
-    
+
     let accumulatedResponse = '';
-    
+
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const textChunk = decoder.decode(value, { stream: true });
         const lines = textChunk.split('\n');
-        
+
         for (const line of lines) {
           if (line.trim()) {
             try {
               const chunk = JSON.parse(line);
-              
+
               switch (chunk.type) {
                 case 'content':
                   accumulatedResponse += chunk.text;
@@ -192,7 +192,7 @@ const api = {
           }
         }
       }
-      
+
       return accumulatedResponse;
     } catch (error) {
       console.error('Error handling stream response:', error);
@@ -200,7 +200,7 @@ const api = {
       throw error;
     }
   },
-  
+
   // Add a function to run pandas queries on the current CSV
   queryCSV: async (query) => {
     try {
@@ -217,7 +217,7 @@ const api = {
       }
     }
   },
-  
+
   // Check CSV status
   checkCSVStatus: async () => {
     try {
@@ -234,7 +234,7 @@ const api = {
       }
     }
   },
-  
+
   // Visualize embeddings
   visualizeEmbeddings: async (query) => {
     try {
@@ -244,6 +244,208 @@ const api = {
       console.error('Error in visualizeEmbeddings:', error);
       if (error.response) {
         throw new Error(error.response.data.error || 'Failed to visualize embeddings');
+      } else if (error.request) {
+        throw new Error('Network error: Could not connect to server');
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // Get list of available sample datasets
+  getSampleDatasets: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/sample_datasets`);
+      return response.data;
+    } catch (error) {
+      console.error('Error in getSampleDatasets:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to fetch sample datasets');
+      } else if (error.request) {
+        throw new Error('Network error: Could not connect to server');
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // Use a sample dataset as the current working dataset
+  useSampleDataset: async (filename) => {
+    try {
+      const response = await axios.post(`${API_URL}/use_sample_dataset`, { filename });
+      return response.data;
+    } catch (error) {
+      console.error('Error in useSampleDataset:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to use sample dataset');
+      } else if (error.request) {
+        throw new Error('Network error: Could not connect to server');
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // Download generated data as CSV
+  downloadData: async (type = 'synthetic') => {
+    try {
+      const response = await axios.get(`${API_URL}/download_data?type=${type}`, {
+        responseType: 'blob'
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Set filename based on type
+      const filename = type === 'synthetic' ? 'synthetic_data.csv' :
+        type === 'combined' ? 'combined_data.csv' : 'original_data.csv';
+      link.setAttribute('download', filename);
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error in downloadData:', error);
+      if (error.response) {
+        // For blob responses, we need to read the error
+        const text = await error.response.data.text();
+        try {
+          const json = JSON.parse(text);
+          throw new Error(json.error || 'Failed to download data');
+        } catch {
+          throw new Error('Failed to download data');
+        }
+      } else if (error.request) {
+        throw new Error('Network error: Could not connect to server');
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // Switch to using generated data for analysis
+  useGeneratedData: async (useCombined = true) => {
+    try {
+      const response = await axios.post(`${API_URL}/use_generated_data`, { useCombined });
+      return response.data;
+    } catch (error) {
+      console.error('Error in useGeneratedData:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to switch to generated data');
+      } else if (error.request) {
+        throw new Error('Network error: Could not connect to server');
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // Check what data is available for download
+  checkDataAvailability: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/data_availability`);
+      return response.data;
+    } catch (error) {
+      console.error('Error in checkDataAvailability:', error);
+      return {
+        success: false,
+        hasOriginal: false,
+        hasSynthetic: false,
+        hasCombined: false
+      };
+    }
+  },
+
+  // =============================================================================
+  // Dataset Management API
+  // =============================================================================
+
+  // Get all datasets (sample + saved)
+  getAllDatasets: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/datasets`);
+      return response.data;
+    } catch (error) {
+      console.error('Error in getAllDatasets:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to fetch datasets');
+      } else if (error.request) {
+        throw new Error('Network error: Could not connect to server');
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // Activate a dataset for analysis
+  activateDataset: async (datasetId) => {
+    try {
+      const response = await axios.post(`${API_URL}/datasets/${encodeURIComponent(datasetId)}/activate`);
+      return response.data;
+    } catch (error) {
+      console.error('Error in activateDataset:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to activate dataset');
+      } else if (error.request) {
+        throw new Error('Network error: Could not connect to server');
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // Save generated data as a new dataset
+  saveDataset: async (name, description, type = 'synthetic') => {
+    try {
+      const response = await axios.post(`${API_URL}/datasets/save`, {
+        name,
+        description,
+        type
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in saveDataset:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to save dataset');
+      } else if (error.request) {
+        throw new Error('Network error: Could not connect to server');
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // Delete a saved dataset
+  deleteDataset: async (datasetId) => {
+    try {
+      const response = await axios.delete(`${API_URL}/datasets/${encodeURIComponent(datasetId)}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error in deleteDataset:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to delete dataset');
+      } else if (error.request) {
+        throw new Error('Network error: Could not connect to server');
+      } else {
+        throw error;
+      }
+    }
+  },
+
+  // Preview a dataset
+  previewDataset: async (datasetId) => {
+    try {
+      const response = await axios.get(`${API_URL}/datasets/${encodeURIComponent(datasetId)}/preview`);
+      return response.data;
+    } catch (error) {
+      console.error('Error in previewDataset:', error);
+      if (error.response) {
+        throw new Error(error.response.data.error || 'Failed to preview dataset');
       } else if (error.request) {
         throw new Error('Network error: Could not connect to server');
       } else {

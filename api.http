@@ -1,0 +1,73 @@
+# =============================================================================
+# MedGen API Test Collection
+# =============================================================================
+# Use with VS Code REST Client extension or similar tools
+# =============================================================================
+
+### Health Check
+GET http://localhost:5000/health
+Content-Type: application/json
+
+###
+
+### Upload CSV File
+# Note: Replace with actual file path
+POST http://localhost:5000/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="diabetes.csv"
+Content-Type: text/csv
+
+< ./datasets/diabetes.csv
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+### Get Dataset Statistics
+GET http://localhost:5000/dataset_stats
+Content-Type: application/json
+
+###
+
+### Start Data Generation
+POST http://localhost:5000/generate
+Content-Type: application/json
+
+{
+    "n_samples": 10,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "repetition_penalty": 1.1,
+    "max_tokens": 2048
+}
+
+###
+
+### Check Generation Status
+GET http://localhost:5000/generation_status
+Content-Type: application/json
+
+###
+
+### Download Synthetic Data
+GET http://localhost:5000/download_synthetic
+Content-Type: application/json
+
+###
+
+### Query the RAG System
+POST http://localhost:5000/query
+Content-Type: application/json
+
+{
+    "query": "What are the key features in this dataset?"
+}
+
+###
+
+### Get Embeddings Visualization Data
+GET http://localhost:5000/embeddings
+Content-Type: application/json
+
+###

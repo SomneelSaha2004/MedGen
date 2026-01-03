@@ -1,24 +1,23 @@
-import React from 'react';
-import { Box, Typography, Paper, Grid, Link, Chip, Divider } from '@mui/material';
+import { Box, Chip, Grid, Link, Paper, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 
 const Acknowledgements = () => {
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { 
+    visible: {
       opacity: 1,
-      transition: { 
+      transition: {
         duration: 0.5,
         when: 'beforeChildren',
         staggerChildren: 0.1
       }
     }
   };
-  
+
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: { duration: 0.3 }
     }
@@ -66,48 +65,48 @@ const Acknowledgements = () => {
       initial="hidden"
       animate="visible"
     >
-      <Paper 
-        sx={{ 
-          p: 4, 
+      <Paper
+        sx={{
+          p: 4,
           mb: 3,
           border: '1px solid rgba(0, 230, 118, 0.2)',
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
         }}
       >
-        <Typography 
-          variant="h4" 
-          component="h1" 
+        <Typography
+          variant="h4"
+          component="h1"
           gutterBottom
           className="cyber-header"
           sx={{ mb: 4 }}
         >
           Acknowledgements
         </Typography>
-        
+
         <Typography variant="body1" paragraph sx={{ mb: 4 }}>
-          This application was built using modern web technologies and libraries. 
+          This application was built using modern web technologies and libraries.
           We'd like to acknowledge the following tools and components that made this project possible.
         </Typography>
-        
+
         <Grid container spacing={4}>
           {technologies.map((tech, index) => (
-            <Grid item xs={12} md={6} key={index}>
+            <Grid size={{ xs: 12, md: 6 }} key={index}>
               <motion.div variants={itemVariants}>
-                <Paper 
-                  sx={{ 
-                    p: 3, 
+                <Paper
+                  sx={{
+                    p: 3,
                     height: '100%',
                     bgcolor: 'rgba(0, 0, 0, 0.2)',
                     border: '1px solid rgba(0, 230, 118, 0.2)',
                   }}
                   className="animated-border"
                 >
-                  <Typography 
-                    variant="h6" 
-                    component="h2" 
-                    gutterBottom 
+                  <Typography
+                    variant="h6"
+                    component="h2"
+                    gutterBottom
                     color="primary"
-                    sx={{ 
+                    sx={{
                       fontWeight: 'bold',
                       borderBottom: '2px solid rgba(0, 230, 118, 0.3)',
                       pb: 1,
@@ -116,7 +115,7 @@ const Acknowledgements = () => {
                   >
                     {tech.category}
                   </Typography>
-                  
+
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                     {tech.items.map((item, idx) => (
                       <Chip
@@ -126,7 +125,7 @@ const Acknowledgements = () => {
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        sx={{ 
+                        sx={{
                           bgcolor: 'rgba(0, 230, 118, 0.1)',
                           color: '#00E676',
                           border: '1px solid rgba(0, 230, 118, 0.3)',
@@ -145,7 +144,7 @@ const Acknowledgements = () => {
             </Grid>
           ))}
         </Grid>
-        
+
         <Box sx={{ mt: 5, pt: 2, borderTop: '1px solid rgba(0, 230, 118, 0.2)' }}>
           <Typography variant="body2" color="text.secondary" align="center">
             Created with ❤️ and ☕. The code is available under an open-source license.

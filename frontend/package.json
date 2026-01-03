@@ -1,7 +1,15 @@
 {
-  "name": "frontend",
-  "version": "0.1.0",
+  "name": "medgen-frontend",
+  "version": "1.0.0",
+  "description": "React frontend for MedGen - AI-powered synthetic medical data generation platform",
   "private": true,
+  "author": "DESU-CLUB",
+  "license": "MIT",
+  "homepage": "https://github.com/DESU-CLUB/CS3264",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DESU-CLUB/CS3264.git"
+  },
   "proxy": "http://localhost:5000",
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -15,8 +23,6 @@
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.8.4",
     "framer-motion": "^12.6.3",
-    "install": "^0.13.0",
-    "npm": "^11.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.5.0",
@@ -28,7 +34,10 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "test:coverage": "react-scripts test --coverage --watchAll=false",
+    "eject": "react-scripts eject",
+    "lint": "eslint src/",
+    "format": "prettier --write src/"
   },
   "eslintConfig": {
     "extends": [

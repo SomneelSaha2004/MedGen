@@ -43,15 +43,27 @@ def build_persisted_index(features_dir="./data/features/", persist_dir="./data/c
     
     # Create persistent client and collection
     os.makedirs(persist_dir, exist_ok=True)
-    chroma_client = chromadb.PersistentClient(path=persist_dir)
     
-    # Check if collection exists, if not create it
     try:
-        chroma_collection = chroma_client.get_collection(name=collection_name)
-        logging.info(f"Using existing collection: {collection_name}")
-    except:
-        logging.info(f"Creating new collection: {collection_name}")
-        chroma_collection = chroma_client.create_collection(name=collection_name)
+        chroma_client = chromadb.PersistentClient(path=persist_dir)
+    except Exception as e:
+        # If database is locked/corrupted, try to reset it
+        logging.warning(f"ChromaDB initialization failed: {e}, attempting to reset...")
+        import shutil
+        if os.path.exists(persist_dir):
+            shutil.rmtree(persist_dir)
+        os.makedirs(persist_dir, exist_ok=True)
+        chroma_client = chromadb.PersistentClient(path=persist_dir)
+    
+    # Delete existing collection if it exists, then create fresh
+    try:
+        chroma_client.delete_collection(name=collection_name)
+        logging.info(f"Deleted existing collection: {collection_name}")
+    except Exception as e:
+        logging.info(f"No existing collection to delete: {e}")
+    
+    logging.info(f"Creating new collection: {collection_name}")
+    chroma_collection = chroma_client.create_collection(name=collection_name)
     
     # define embedding function
     embed_model = OpenAIEmbedding()
@@ -88,10 +100,10 @@ def load_persisted_index(persist_dir="./data/chroma_db", collection_name="dquery
         logging.error(f"Persist directory {persist_dir} does not exist")
         return None
     
-    # Load existing index
-    chroma_client = chromadb.PersistentClient(path=persist_dir)
-    
     try:
+        # Load existing index
+        chroma_client = chromadb.PersistentClient(path=persist_dir)
+        
         chroma_collection = chroma_client.get_collection(name=collection_name)
         logging.info(f"Loaded collection: {collection_name}")
         
@@ -111,6 +123,14 @@ def load_persisted_index(persist_dir="./data/chroma_db", collection_name="dquery
         return index.as_query_engine()
     except Exception as e:
         logging.error(f"Error loading collection: {str(e)}")
+        # Try to reset and return None - caller should rebuild
+        try:
+            import shutil
+            if os.path.exists(persist_dir):
+                shutil.rmtree(persist_dir)
+            os.makedirs(persist_dir, exist_ok=True)
+        except:
+            pass
         return None
 
 def query_index(query_text, query_engine=None, persist_dir="./data/chroma_db", collection_name="dquery"):
